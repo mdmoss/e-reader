@@ -15,8 +15,14 @@ import java.io.ObjectOutputStream;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.util.HashSet;
+import java.util.Timer;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class Reader {
+  
+  public final String pageDir = "/home/mdm/e-reader/pages/";
+  
   HashSet<Post> posts = new HashSet<Post>();
   String mode;
   Integer interval;
@@ -28,6 +34,8 @@ public class Reader {
   
   String currentBook;
   Integer currentPage;
+  
+  Timer poll = null;
 
   public Reader(String[] args) throws IOException, FileNotFoundException, ClassNotFoundException {
     mode = args[0];
@@ -44,16 +52,18 @@ public class Reader {
     BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
     
     while (true) {
-      String[] command = reader.readLine().split("\\s");
+      String in = reader.readLine();
+      if (in == null) break;
+      String[] command = in.split("\\s", 2);
       switch (command[0]) {
         case "display":
-          display(command);
+          display(command[1]);
           break;
         case "post_to_forum":
-          post_to_forum(command);
+          post_to_forum(command[1]);
           break;
         case "read_post":
-          read_post(command);
+          read_post(command[1]);
           break;
         default:
           System.out.println("Invalid command: " + command[0]);
@@ -62,10 +72,11 @@ public class Reader {
     }
   }
   
-  void display(String[] command) throws FileNotFoundException, IOException, ClassNotFoundException {
+  void display(String args) throws FileNotFoundException, IOException, ClassNotFoundException {
+    String[] command = args.split("\\s");
     
-    String book = command[1];
-    int page = Integer.parseInt(command[2]);
+    String book = command[0];
+    int page = Integer.parseInt(command[1]);
     
     currentBook = book;
     currentPage = page;
@@ -74,7 +85,7 @@ public class Reader {
       updatePosts(book, page);
     }
     
-    String fileName = "pages/" + book + "_page" + page;
+    String fileName = pageDir + book + "_page" + page;
     BufferedReader file = new BufferedReader(new FileReader(fileName));
     String text = null;
     int line = 1;
@@ -94,12 +105,15 @@ public class Reader {
       System.out.println(marker + " " + text);
       line++;
     }
+    
+    schedulePoll(book, page);
   }
   
-  void post_to_forum(String[] command) throws IOException {
+  void post_to_forum(String args) throws IOException {
+    String[] command = args.split("\\s", 2);
     if (currentBook == null || currentPage == null) return;
-    Integer line = Integer.parseInt(command[1]);
-    String content = command[2];
+    Integer line = Integer.parseInt(command[0]);
+    String content = command[1];
     
     Socket sock = new Socket(server, serverPort);
     ObjectOutputStream out = new ObjectOutputStream(sock.getOutputStream());
@@ -108,9 +122,10 @@ public class Reader {
     out.writeObject(p);
   }
   
-  void read_post(String[] command) {
+  void read_post(String args) {
+    String[] command = args.split("\\s");
     if (currentBook == null || currentPage == null) return;
-    Integer line = Integer.parseInt(command[1]);
+    Integer line = Integer.parseInt(command[0]);
     
     System.out.println(currentBook + " p." + currentPage + ", line:" + line);
     
@@ -123,14 +138,40 @@ public class Reader {
     }
   }
   
-  void updatePosts(String book, int page) throws IOException, ClassNotFoundException {
+  int updatePosts(String book, int page) throws IOException, ClassNotFoundException {
     Socket sock = new Socket(server, serverPort);
     ObjectOutputStream out = new ObjectOutputStream(sock.getOutputStream());
     out.writeObject(new PostList(book, page));
     ObjectInputStream in = new ObjectInputStream(sock.getInputStream());
     PostList res = (PostList) in.readObject();
-    System.out.println("Got " + res.posts.size() + " posts");
+    int sizePre = posts.size();
     posts.addAll(res.posts);
     sock.close();
+    return posts.size() - sizePre;
   };
+  
+  void schedulePoll(String book, int page) {
+    if (poll != null) {
+      poll.cancel();
+    }
+    
+    final String cBook = book;
+    final int cpage = page;
+    
+    new java.util.Timer().scheduleAtFixedRate(
+      new java.util.TimerTask() {
+        @Override
+        public void run() {
+          try {
+            int created = updatePosts(cBook, cpage);
+            if (created > 0) {
+              System.out.println("There are new posts.");
+            }
+          } catch (IOException | ClassNotFoundException ex) {
+          }
+        }
+    }, 
+    interval * 1000, 
+    interval * 1000);
+  }
 }

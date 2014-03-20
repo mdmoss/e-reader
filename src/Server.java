@@ -16,14 +16,13 @@ public class Server {
   List<Client> pushList = new ArrayList<Client>();
   
   Server (int port) throws IOException, ClassNotFoundException {
+    ServerSocket sock = new ServerSocket(port);
     while (true) {
-      ServerSocket sock = new ServerSocket(port);
       Socket conn = sock.accept();
       ObjectInputStream in = new ObjectInputStream(conn.getInputStream());
       ObjectOutputStream out = new ObjectOutputStream(conn.getOutputStream());
       handle(in, out);
       conn.close();
-      sock.close();
     }
   }
 
