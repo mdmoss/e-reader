@@ -35,7 +35,7 @@ public class Reader {
   String currentBook;
   Integer currentPage;
   
-  Timer poll = null;
+  Timer poll;
 
   public Reader(String[] args) throws IOException, FileNotFoundException, ClassNotFoundException {
     mode = args[0];
@@ -158,7 +158,8 @@ public class Reader {
     final String cBook = book;
     final int cpage = page;
     
-    new java.util.Timer().scheduleAtFixedRate(
+    poll = new java.util.Timer();        
+    poll.scheduleAtFixedRate(
       new java.util.TimerTask() {
         @Override
         public void run() {
