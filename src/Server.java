@@ -29,13 +29,13 @@ public class Server {
   public void handle(ObjectInputStream in, ObjectOutputStream out) throws IOException, ClassNotFoundException {
     Object message = in.readObject();
     
-    System.out.println(message.getClass());
-    
     if (message.getClass().equals(PostList.class)) {
       sendPostList((PostList) message, out);
     } else if (message.getClass().equals(Post.class)) {
       out.close();
       addPost((Post) message); 
+    } else if (message.getClass().equals(Client.class)) {
+      addClient((Client) message, out);
     } else {
       System.err.println("Invalid message received");
     }
@@ -43,20 +43,42 @@ public class Server {
   
   public void sendPostList(PostList pl, ObjectOutputStream out) throws IOException {
     System.err.println("Sending Post List " + pl);
-    
     for (Post p : posts) {
-      System.out.println("Considering " + p);
       if (p.book.equals(pl.book) && p.page.equals(pl.page)) {
-        System.err.println("Adding " + p.content);
         pl.posts.add(p);
       }
     }
     out.writeObject(pl);
+    out.close();
   }
   
   public void addPost(Post p) {
+    System.err.println("Adding post " + p);
     p.id = posts.size();
     posts.add(p);
-    System.err.println("Added Post: " + p);
+    for (Client c: pushList) {
+      push(p, c);
+    }
+  }
+  
+  public void addClient(Client c, ObjectOutputStream out) throws IOException {
+    System.err.println("Adding client " + c);
+    pushList.add(c);
+    PostList full = new PostList("", 0);
+    full.posts = new ArrayList(posts);
+    out.writeObject(full);
+    out.close();
+  }
+  
+  public void push(Post p, Client c) {
+    try {
+      System.err.println("Pushing to " + c);
+      Socket sock = new Socket(c.host, c.port);
+      ObjectOutputStream out = new ObjectOutputStream(sock.getOutputStream());
+      out.writeObject(p);
+    } catch (Exception e) {
+      /* We're being very risk-averse here; just deal with failure */
+      System.err.println(e);
+    }
   }
 }

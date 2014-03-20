@@ -13,8 +13,10 @@ import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.InetAddress;
+import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.HashSet;
+import java.util.Random;
 import java.util.Timer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -35,7 +37,11 @@ public class Reader {
   String currentBook;
   Integer currentPage;
   
+  ServerSocket pushSock;
+  
   Timer poll;
+  
+  final int DEFAULT_RETRIES = 10;
 
   public Reader(String[] args) throws IOException, FileNotFoundException, ClassNotFoundException {
     mode = args[0];
@@ -48,6 +54,16 @@ public class Reader {
     assert (mode.equals("push") || mode.equals("poll"));
     
     server = InetAddress.getByName(serverName);
+    
+    if (mode.equals("push")) {
+      pushSock = openPushSocket(DEFAULT_RETRIES);
+      if (pushSock == null) {
+        System.err.println("Failed to open push socket");
+        System.exit(1);
+      }
+      registerPush();
+    }
+    
     
     BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
     
@@ -174,5 +190,31 @@ public class Reader {
     }, 
     interval * 1000, 
     interval * 1000);
+  }
+
+  private void registerPush() throws IOException, ClassNotFoundException {
+    Socket sock = new Socket(server, serverPort);
+    ObjectOutputStream out = new ObjectOutputStream(sock.getOutputStream());
+    out.writeObject(new Client(pushSock.getInetAddress().getHostAddress(), pushSock.getLocalPort()));
+    ObjectInputStream in = new ObjectInputStream(sock.getInputStream());
+    PostList full = (PostList) in.readObject();
+    for (Post p: full.posts) {
+      posts.add(p);
+    }
+    
+    new Thread(new PostListener(this)).start();
+  }
+
+  private ServerSocket openPushSocket(int retries) {
+    Random gen = new Random();
+    try {
+      ServerSocket s = new ServerSocket(gen.nextInt(65535 - 1024) + 1024);
+      return s;
+    } catch (IOException ex) {
+      if (retries > 0) {
+        return openPushSocket(retries - 1);
+      }
+    }
+    return null;
   }
 }
