@@ -30,7 +30,7 @@ import java.util.logging.Logger;
 
 public class Reader {
   
-  public final String pageDir = "/home/mdm/e-reader/pages/";
+  public final String pageDir = "pages/";
   
   HashSet<Post> posts = new HashSet<Post>();
   String mode;
