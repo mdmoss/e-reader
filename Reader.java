@@ -148,7 +148,9 @@ public class Reader {
       line++;
     }
     
-    schedulePoll(book, page);
+    if (this.mode.equals("pull")) {
+      schedulePoll(book, page);
+    }
   }
   
   void post_to_forum(String args) throws IOException {
