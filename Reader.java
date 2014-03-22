@@ -91,25 +91,18 @@ public class Reader {
     while (true) {
       String in = input.take();
       String[] command = in.split("\\s", 2);
-      switch (command[0]) {
-        case "display":
-          display(command[1]);
-          break;
-        case "post_to_forum":
-          post_to_forum(command[1]);
-          break;
-        case "read_post":
-          read_post(command[1]);
-          break;
-        case "chat_request":
-          chat_request(command[1]);
-          break;
-        case "chat":
-          chat(command[1]);
-          break;
-        default:
-          System.out.println("Invalid command: " + command[0]);
-          break;
+      if (command.equals("display")) {
+        display(command[1]);
+      } else if (command.equals("post_to_forum")) {
+        post_to_forum(command[1]);
+      } else if (command.equals("read_post")) {
+        read_post(command[1]);
+      } else if (command.equals("chat_request")) {
+        chat_request(command[1]);
+      } else if (command.equals("chat")) {
+        chat(command[1]);
+      } else {
+        System.out.println("Invalid command: " + command[0]);
       }
     }
   }
@@ -212,8 +205,8 @@ public class Reader {
             if (created > 0) {
               System.out.println("There are new posts.");
             }
-          } catch (IOException | ClassNotFoundException ex) {
-          }
+          } catch (IOException e) {
+          } catch (ClassNotFoundException ex){}
         }
     }, 
     interval * 1000, 
