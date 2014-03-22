@@ -1,2 +1,2 @@
 cd build/classes
-java reader_ex push 999 mdm localhost 9876
+java reader_ex push 999 mdm2 localhost 9876

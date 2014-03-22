@@ -14,11 +14,17 @@ public class Server {
 
   List<Post> posts = new ArrayList<Post>();
   List<Client> pushList = new ArrayList<Client>();
+  List<ChatClient> chatList = new ArrayList<ChatClient>();
   
   Server (int port) throws IOException, ClassNotFoundException {
     ServerSocket sock = new ServerSocket(port);
+    
+    System.out.println("The server is listening on " + port);
+    System.out.println("The database has been initialised");
+    
     while (true) {
       Socket conn = sock.accept();
+      System.out.print("# ");
       ObjectInputStream in = new ObjectInputStream(conn.getInputStream());
       ObjectOutputStream out = new ObjectOutputStream(conn.getOutputStream());
       handle(in, out);
@@ -36,13 +42,19 @@ public class Server {
       addPost((Post) message); 
     } else if (message.getClass().equals(Client.class)) {
       addClient((Client) message, out);
+    } else if (message.getClass().equals(ChatClient.class)) {
+      out.close();
+      addChatClient((ChatClient) message);
+    } else if (message.getClass().equals(ChatRequest.class)) {
+      out.close();
+      forwardChatRequest((ChatRequest) message);
     } else {
-      System.err.println("Invalid message received");
+      System.out.println("Invalid message received");
     }
   }
   
   public void sendPostList(PostList pl, ObjectOutputStream out) throws IOException {
-    System.err.println("Sending Post List " + pl);
+    System.out.println("Sending Post List " + pl);
     for (Post p : posts) {
       if (p.book.equals(pl.book) && p.page.equals(pl.page)) {
         pl.posts.add(p);
@@ -53,16 +65,25 @@ public class Server {
   }
   
   public void addPost(Post p) {
-    System.err.println("Adding post " + p);
+    System.out.println(p);
+    
+    System.out.println("New post received from " + p.user + ".");
     p.id = posts.size();
     posts.add(p);
+    
+    System.out.println("Post added to the database and given serial number  " + p.id + ".");
+    
     for (Client c: pushList) {
       push(p, c);
+    }
+    
+    if (pushList.isEmpty()) {
+      System.out.println("Push list empty. No action required.");
     }
   }
   
   public void addClient(Client c, ObjectOutputStream out) throws IOException {
-    System.err.println("Adding client " + c);
+    System.out.println("Adding client " + c);
     pushList.add(c);
     PostList full = new PostList("", 0);
     full.posts = new ArrayList(posts);
@@ -72,13 +93,31 @@ public class Server {
   
   public void push(Post p, Client c) {
     try {
-      System.err.println("Pushing to " + c);
+      System.out.println("Pushing to " + c);
       Socket sock = new Socket(c.host, c.port);
       ObjectOutputStream out = new ObjectOutputStream(sock.getOutputStream());
       out.writeObject(p);
     } catch (Exception e) {
       /* We're being very risk-averse here; just deal with failure */
-      System.err.println(e);
+      System.out.println(e);
     }
+  }
+
+  private void addChatClient(ChatClient client) {
+    System.out.println("Adding client " + client);
+    chatList.add(client);
+  }
+
+  private void forwardChatRequest(ChatRequest req) throws IOException {
+    for (ChatClient c : chatList) {
+      if (c.username.equals(req.to)) {
+        Socket sock = new Socket(c.host, c.port);
+        ObjectOutputStream out = new ObjectOutputStream(sock.getOutputStream());
+        out.writeObject(req);
+        System.out.println(req);
+        return;
+      }
+    }
+    System.out.println("forwardChatRequest: matching user not found");
   }
 }

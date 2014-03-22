@@ -12,12 +12,19 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketException;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Random;
 import java.util.Timer;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -38,12 +45,20 @@ public class Reader {
   Integer currentPage;
   
   ServerSocket pushSock;
+  ServerSocket chatSocket;
   
   Timer poll;
   
+  List<ChatRequest> conversations = new ArrayList<ChatRequest>();
+  
+  DatagramSocket udpChatSocket;
+  
+  LinkedBlockingQueue<String> input = new LinkedBlockingQueue<String>();
+  LinkedBlockingQueue<String> confirmations = new LinkedBlockingQueue<String>();
+  
   final int DEFAULT_RETRIES = 10;
 
-  public Reader(String[] args) throws IOException, FileNotFoundException, ClassNotFoundException {
+  public Reader(String[] args) throws IOException, FileNotFoundException, ClassNotFoundException, InterruptedException {
     mode = args[0];
     interval = Integer.parseInt(args[1]);
     username = args[2];
@@ -51,25 +66,30 @@ public class Reader {
     serverPort = Integer.parseInt(args[4]);
     
     /* Sanity checks for spec-conforming input */
-    assert (mode.equals("push") || mode.equals("poll"));
+    assert (mode.equals("push") || mode.equals("pull"));
     
     server = InetAddress.getByName(serverName);
     
     if (mode.equals("push")) {
-      pushSock = openPushSocket(DEFAULT_RETRIES);
-      if (pushSock == null) {
-        System.err.println("Failed to open push socket");
-        System.exit(1);
-      }
+      pushSock = openSocket(DEFAULT_RETRIES);
+      assert(pushSock != null);
       registerPush();
     }
     
+    chatSocket = openSocket(DEFAULT_RETRIES);
+    assert(chatSocket != null);
+    registerChat();
     
-    BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+    udpChatSocket = openUDPSocket(DEFAULT_RETRIES);
+    assert(udpChatSocket != null);
+    new Thread(new ChatControlListener(this)).start();
+    new Thread(new ChatListener(this)).start();
+    
+    new Thread(new StdinListener(this)).start();
+    
     
     while (true) {
-      String in = reader.readLine();
-      if (in == null) break;
+      String in = input.take();
       String[] command = in.split("\\s", 2);
       switch (command[0]) {
         case "display":
@@ -80,6 +100,12 @@ public class Reader {
           break;
         case "read_post":
           read_post(command[1]);
+          break;
+        case "chat_request":
+          chat_request(command[1]);
+          break;
+        case "chat":
+          chat(command[1]);
           break;
         default:
           System.out.println("Invalid command: " + command[0]);
@@ -97,7 +123,7 @@ public class Reader {
     currentBook = book;
     currentPage = page;
     
-    if (this.mode.equals("poll")) {
+    if (this.mode.equals("pull")) {
       updatePosts(book, page);
     }
     
@@ -205,16 +231,64 @@ public class Reader {
     new Thread(new PostListener(this)).start();
   }
 
-  private ServerSocket openPushSocket(int retries) {
+  private ServerSocket openSocket(int retries) throws SocketException {
     Random gen = new Random();
     try {
-      ServerSocket s = new ServerSocket(gen.nextInt(65535 - 1024) + 1024);
+      ServerSocket s = new ServerSocket(gen.nextInt(65536 - 1024) + 1024);
       return s;
     } catch (IOException ex) {
       if (retries > 0) {
-        return openPushSocket(retries - 1);
+        return openSocket(retries - 1);
+      } else {
+        throw new SocketException();
       }
     }
-    return null;
+  }
+  
+  private DatagramSocket openUDPSocket(int retries) throws SocketException {
+    Random gen = new Random();
+    try {
+      DatagramSocket s = new DatagramSocket(gen.nextInt(65536 - 1024) + 1024);
+      return s;
+    } catch (IOException ex) {
+      if (retries > 0) {
+        return openUDPSocket(retries - 1);
+      } else {
+        throw new SocketException();
+      }
+    }
+  }
+
+  private void registerChat() throws IOException {
+    Socket sock = new Socket(server, serverPort);
+    ObjectOutputStream out = new ObjectOutputStream(sock.getOutputStream());
+    out.writeObject(new ChatClient(username, chatSocket.getInetAddress().getHostAddress(), chatSocket.getLocalPort()));
+    new Thread(new ChatControlListener(this)).start();
+  }
+
+  private void chat_request(String args) throws IOException {
+    String[] command = args.split("\\s");
+    String target = command[0];
+    Socket sock = new Socket(server, serverPort);
+    ObjectOutputStream out = new ObjectOutputStream(sock.getOutputStream());
+    ChatRequest req = new ChatRequest(username, target, udpChatSocket.getLocalAddress().getHostAddress(), udpChatSocket.getLocalPort(), false);
+    out.writeObject(req);
+    conversations.add(req);
+  }
+
+  private void chat(String args) throws SocketException, IOException {
+    String[] command = args.split("\\s", 2);
+    String target = command[0];
+    String msg = command[1];
+    
+    for (ChatRequest c : conversations) {
+      if (c.from.equals(target)) {
+        InetSocketAddress peer = new InetSocketAddress(c.chatHost, c.chatPort);
+        String raw = username + ":" + msg;
+        byte[] buf = raw.getBytes();
+        DatagramPacket p = new DatagramPacket(raw.getBytes(), buf.length, peer);
+        udpChatSocket.send(p);
+      }
+    }
   }
 }

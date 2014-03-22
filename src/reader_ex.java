@@ -16,7 +16,7 @@ import java.util.List;
 
 public class reader_ex {
   
-  public static void main(String[] args) throws IOException, FileNotFoundException, ClassNotFoundException {
+  public static void main(String[] args) throws IOException, FileNotFoundException, ClassNotFoundException, InterruptedException {
     if (args.length != 5) {
       System.err.println("Usage: java reader mode polling_interval user_name server_name server_port_number");
       System.exit(1);

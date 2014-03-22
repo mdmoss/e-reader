@@ -18,21 +18,22 @@ public class PostListener implements Runnable {
   
   @Override
   public void run() {
-    try {
-      Socket conn = reader.pushSock.accept();
-      ObjectInputStream in = new ObjectInputStream(conn.getInputStream());
-      Post p = (Post) in.readObject();
-      if (p.book.equals(reader.currentBook) && p.page.equals(reader.currentPage)) {
-        System.out.println("There are new posts.");
+    while(true) {
+      try {
+        Socket conn = reader.pushSock.accept();
+        ObjectInputStream in = new ObjectInputStream(conn.getInputStream());
+        Post p = (Post) in.readObject();
+        if (p.book.equals(reader.currentBook) && p.page.equals(reader.currentPage)) {
+          System.out.println("There are new posts.");
+        }
+        reader.posts.add(p);
+        conn.close();
+
+      } catch (IOException ex) {
+        System.out.println("Error reading push");
+      } catch (ClassNotFoundException ex) {
+        System.out.println("Error decoding push");
       }
-      System.err.println("debug: post added");
-      reader.posts.add(p);
-      conn.close();
-      
-    } catch (IOException ex) {
-      System.out.println("Error reading push");
-    } catch (ClassNotFoundException ex) {
-      Logger.getLogger(PostListener.class.getName()).log(Level.SEVERE, null, ex);
     }
   }
   
