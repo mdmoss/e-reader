@@ -91,15 +91,15 @@ public class Reader {
     while (true) {
       String in = input.take();
       String[] command = in.split("\\s", 2);
-      if (command.equals("display")) {
+      if (command[0].equals("display")) {
         display(command[1]);
-      } else if (command.equals("post_to_forum")) {
+      } else if (command[0].equals("post_to_forum")) {
         post_to_forum(command[1]);
-      } else if (command.equals("read_post")) {
+      } else if (command[0].equals("read_post")) {
         read_post(command[1]);
-      } else if (command.equals("chat_request")) {
+      } else if (command[0].equals("chat_request")) {
         chat_request(command[1]);
-      } else if (command.equals("chat")) {
+      } else if (command[0].equals("chat")) {
         chat(command[1]);
       } else {
         System.out.println("Invalid command: " + command[0]);

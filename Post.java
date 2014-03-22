@@ -1,6 +1,6 @@
 
 import java.io.Serializable;
-import java.util.Objects;
+import java.lang.Object;
 
 /*
  * Post.java
@@ -32,11 +32,11 @@ public class Post implements Serializable {
   public int hashCode() {
     int hash = 7;
     hash = 89 * hash + this.id;
-    hash = 89 * hash + Objects.hashCode(this.content);
-    hash = 89 * hash + Objects.hashCode(this.user);
-    hash = 89 * hash + Objects.hashCode(this.book);
-    hash = 89 * hash + Objects.hashCode(this.page);
-    hash = 89 * hash + Objects.hashCode(this.line);
+    hash = 89 * hash + this.content.hashCode();
+    hash = 89 * hash + this.user.hashCode();
+    hash = 89 * hash + this.book.hashCode();
+    hash = 89 * hash + this.page.hashCode();
+    hash = 89 * hash + this.line.hashCode();
     return hash;
   }
 
@@ -52,19 +52,19 @@ public class Post implements Serializable {
     if (this.id != other.id) {
       return false;
     }
-    if (!Objects.equals(this.content, other.content)) {
+    if (!this.content.equals(other.content)) {
       return false;
     }
-    if (!Objects.equals(this.user, other.user)) {
+    if (!this.user.equals(other.user)) {
       return false;
     }
-    if (!Objects.equals(this.book, other.book)) {
+    if (!this.book.equals(other.book)) {
       return false;
     }
-    if (!Objects.equals(this.page, other.page)) {
+    if (!this.page.equals(other.page)) {
       return false;
     }
-    if (!Objects.equals(this.line, other.line)) {
+    if (!this.line.equals(other.line)) {
       return false;
     }
     return true;
