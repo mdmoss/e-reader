@@ -83,10 +83,19 @@ public class Server {
   }
   
   public void addClient(Client c, ObjectOutputStream out) throws IOException {
-    System.out.println("Adding client " + c);
+    System.out.println("Adding push client " + c);
     pushList.add(c);
     PostList full = new PostList("", 0);
-    full.posts = new ArrayList(posts);
+    System.out.println("Got post summary");
+    full.posts = new ArrayList<Post>();
+    System.out.print("Forwarding posts: <");
+    for (Post p : posts) {
+      if (!c.posts.contains(p.id)) {
+        full.posts.add(p);
+        System.out.print(p.id + " ");
+      }
+    }
+    System.out.println(">");
     out.writeObject(full);
     out.close();
   }

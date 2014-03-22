@@ -221,7 +221,12 @@ public class Reader {
   private void registerPush() throws IOException, ClassNotFoundException {
     Socket sock = new Socket(server, serverPort);
     ObjectOutputStream out = new ObjectOutputStream(sock.getOutputStream());
-    out.writeObject(new Client(pushSock.getInetAddress().getHostAddress(), pushSock.getLocalPort()));
+    ArrayList<Integer> knownPosts = new ArrayList<Integer>();
+    for (Post p : posts) {
+      knownPosts.add(p.id);
+    }
+    
+    out.writeObject(new Client(pushSock.getInetAddress().getHostAddress(), pushSock.getLocalPort(), knownPosts));
     ObjectInputStream in = new ObjectInputStream(sock.getInputStream());
     PostList full = (PostList) in.readObject();
     for (Post p: full.posts) {
