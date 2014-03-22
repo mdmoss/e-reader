@@ -55,8 +55,7 @@ public class ChatControlListener implements Runnable {
                   reader.username,
                   cr.from,
                   reader.udpChatSocket.getLocalAddress().getHostAddress(), 
-                  reader.udpChatSocket.getLocalPort(),
-                  true));
+                  reader.udpChatSocket.getLocalPort()));
           
         } else {
           System.out.println("Chat refused!");

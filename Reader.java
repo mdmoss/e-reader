@@ -278,7 +278,7 @@ public class Reader {
     String target = command[0];
     Socket sock = new Socket(server, serverPort);
     ObjectOutputStream out = new ObjectOutputStream(sock.getOutputStream());
-    ChatRequest req = new ChatRequest(username, target, udpChatSocket.getLocalAddress().getHostAddress(), udpChatSocket.getLocalPort(), false);
+    ChatRequest req = new ChatRequest(username, target, udpChatSocket.getLocalAddress().getHostAddress(), udpChatSocket.getLocalPort());
     out.writeObject(req);
     conversations.add(req);
   }
