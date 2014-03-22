@@ -1,0 +1,311 @@
+#LyX 2.0 created this file. For more info see http://www.lyx.org/
+\lyxformat 413
+\begin_document
+\begin_header
+\textclass article
+\use_default_options true
+\maintain_unincluded_children false
+\language english
+\language_package default
+\inputencoding auto
+\fontencoding global
+\font_roman default
+\font_sans default
+\font_typewriter default
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100
+\font_tt_scale 100
+
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\paperfontsize default
+\use_hyperref false
+\papersize default
+\use_geometry false
+\use_amsmath 1
+\use_esint 1
+\use_mhchem 1
+\use_mathdots 1
+\cite_engine basic
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\use_refstyle 1
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\quotes_language english
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Title
+Comp3331 s1 2014 Assignment 1
+\end_layout
+
+\begin_layout Author
+Matthew Moss <mdm@cse.unsw.edu.au>
+\end_layout
+
+\begin_layout Section
+Design and Implementation
+\end_layout
+
+\begin_layout Standard
+To simplify the implementation of this assignment, I used Java's built in
+ serialization.
+ In a real world system this is often not an option, but for a one-off assignmen
+t such as this it makes development faster and easier.
+ The server component begins by opening a single listening TCP port.
+ All messages to the server are sent over this port, and different handler
+ functions are invoked by matching the class of the serialized object.
+ Other than the list of post clients and posts, the server maintains no
+ state.
+\end_layout
+
+\begin_layout Standard
+Readers use several threads, to allow concurrent operations to happen smoothly.
+ Blocking queues are used to simplify inter-thread communication.
+ All user input via stdin happens via a StdinListener thread, which filters
+ input based on content.
+ If the input contains 
+\begin_inset Quotes eld
+\end_inset
+
+y
+\begin_inset Quotes erd
+\end_inset
+
+ or 
+\begin_inset Quotes eld
+\end_inset
+
+n
+\begin_inset Quotes erd
+\end_inset
+
+ alone, it is considered a confirmation and placed in the confirmations
+ queue.
+ Otherwise, it is placed in the input queue.
+ This allows the reader to immediately see the results of the user responding
+ 
+\begin_inset Quotes eld
+\end_inset
+
+y
+\begin_inset Quotes erd
+\end_inset
+
+ or 
+\begin_inset Quotes eld
+\end_inset
+
+n
+\begin_inset Quotes erd
+\end_inset
+
+ to a chat request.
+ When a client starts it also opens a random UDP port and a listener thread,
+ to handle chat.
+\end_layout
+
+\begin_layout Standard
+Readers in 
+\begin_inset Quotes eld
+\end_inset
+
+pull
+\begin_inset Quotes erd
+\end_inset
+
+ mode are the simplest of the two types.
+ When updated post information is needed, they send the current book and
+ page to the server, which responds with the posts from that book and page.
+ At that time a timer is started to run a function that queries the server
+ again.
+ This is repeated indefinitely at the specified interval.
+ If a different page is displayed, the previous timer is cancelled and a
+ new one started.
+\end_layout
+
+\begin_layout Standard
+Readers in 
+\begin_inset Quotes eld
+\end_inset
+
+push
+\begin_inset Quotes erd
+\end_inset
+
+ mode open a TCP socket on a random port, and advise the server of this
+ in their initial handshake.
+ The server will then forward new posts to this port when they are created.
+ A PostListener thread listens on the port, and prints messages when new
+ posts are received.
+\end_layout
+
+\begin_layout Standard
+Chat is accomplished with the ChatListener and ChatControlListener threads.
+ Each reader has a list of conversations.
+ If a reader requests chat with another reader, a ChatRequest is added to
+ the list.
+ This ChatRequest signifies the user is ready to accept communication from
+ the other user.
+ When a user receives a chat request, they look for a matching ChatRequest
+ already in the list.
+ If it exists, it is replaced with the newer one.
+ This means that when a user accepts chat, they can reply with the same
+ message format, simplifying communications.
+\end_layout
+
+\begin_layout Subsection
+Message Format
+\end_layout
+
+\begin_layout Standard
+Messages are simply serialized Java classes.
+ To query the posts of a particular page, the reader sends a PostList containing
+ a book and page.
+ The server responds with a PostList containing a book, page, and list of
+ posts.
+\end_layout
+
+\begin_layout Standard
+To register for push, a reader sends a Client message.
+ The server adds this to its internal list of push clients.
+ The client message contains the host and port of the client, and the list
+ of known posts.
+ The server checks these known posts against its database, adds any unknown
+ posts to a PostList and replies with this list to the client.
+ Thus the initial handshake is completed in a single request/response.
+\end_layout
+
+\begin_layout Standard
+The Post message is used to create new posts.
+ It contains an id, the relevant user name, and the book, page and line
+ of the post.
+ The id field is ignored by the server, as it is automatically assigned
+ when the post is inserted in the database.
+ As allowed in the spec, the server makes no response to a Post message.
+\end_layout
+
+\begin_layout Standard
+The ChatRequest message contains fields for the user sending, and user receiving
+, as well as the host and port of the sender's chat socket.
+ With this message, a user is able to open a UDP connection to chat to a
+ client.
+\end_layout
+
+\begin_layout Standard
+The chat messages contain the sender's user name, followed by a colon (
+\begin_inset Quotes eld
+\end_inset
+
+:
+\begin_inset Quotes erd
+\end_inset
+
+) and the chat message.
+ This means parsing the string to check if messages are allowed is easy,
+ and the string can be printed in full to display the chat message.
+\end_layout
+
+\begin_layout Subsection
+Trade offs
+\end_layout
+
+\begin_layout Itemize
+This is a very insecure system.
+ String matching on user names is used for all user identification.
+ This is the first of a long list of potential issues that I won't expound
+ here.
+\end_layout
+
+\begin_layout Itemize
+Some operations could be optimized, but performance is not a target of this
+ design.
+\end_layout
+
+\begin_layout Itemize
+If performed incorrectly, many operations will cause unpredictable errors.
+ For example, if the display command is passed invalid arguments, the file
+ reader will throw an uncaught exception.
+ In my opinion this is acceptable, as friendly user interfaces are not a
+ requirement of the assignment.
+\end_layout
+
+\begin_layout Itemize
+The chat string (user name + 
+\begin_inset Quotes eld
+\end_inset
+
+:
+\begin_inset Quotes erd
+\end_inset
+
+ + message) has a maximum length of 256.
+ Longer messages can be sent, but will not be displayed.
+\end_layout
+
+\begin_layout Itemize
+If the user name contains a 
+\begin_inset Quotes eld
+\end_inset
+
+:
+\begin_inset Quotes erd
+\end_inset
+
+ symbol, chat messages will not be handled correctly.
+ Effectively, every message will be from an unknown sender, and will be
+ ignored.
+\end_layout
+
+\begin_layout Subsection
+Possible Improvements and Extensions
+\end_layout
+
+\begin_layout Standard
+A persistent database of users would make a nice addition to the server
+ for this assignment.
+ Allowing users to maintain lists of 
+\begin_inset Quotes eld
+\end_inset
+
+friends
+\begin_inset Quotes erd
+\end_inset
+
+ from whom they automatically accept chat could improve the user experience.
+\end_layout
+
+\begin_layout Section
+Attributions
+\end_layout
+
+\begin_layout Standard
+To the best of my knowledge, all submitted code is my own.
+\end_layout
+
+\end_body
+\end_document
