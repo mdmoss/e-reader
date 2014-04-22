@@ -221,7 +221,7 @@ public class Reader {
       knownPosts.add(p.id);
     }
     
-    out.writeObject(new Client(InetAddress.getHostAddress(), pushSock.getLocalPort(), knownPosts));
+    out.writeObject(new Client(InetAddress.getLocalHost().getHostAddress(), pushSock.getLocalPort(), knownPosts));
     ObjectInputStream in = new ObjectInputStream(sock.getInputStream());
     PostList full = (PostList) in.readObject();
     for (Post p: full.posts) {
