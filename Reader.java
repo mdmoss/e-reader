@@ -262,7 +262,7 @@ public class Reader {
   private void registerChat() throws IOException {
     Socket sock = new Socket(server, serverPort);
     ObjectOutputStream out = new ObjectOutputStream(sock.getOutputStream());
-    out.writeObject(new ChatClient(username, chatSocket.getInetAddress().getHostAddress(), chatSocket.getLocalPort()));
+    out.writeObject(new ChatClient(username, InetAddress.getLocalHost().getHostAddress(), chatSocket.getLocalPort()));
     new Thread(new ChatControlListener(this)).start();
   }
 
@@ -271,7 +271,7 @@ public class Reader {
     String target = command[0];
     Socket sock = new Socket(server, serverPort);
     ObjectOutputStream out = new ObjectOutputStream(sock.getOutputStream());
-    ChatRequest req = new ChatRequest(username, target, udpChatSocket.getLocalAddress().getHostAddress(), udpChatSocket.getLocalPort());
+    ChatRequest req = new ChatRequest(username, target, InetAddress.getLocalHost().getHostAddress(), udpChatSocket.getLocalPort());
     out.writeObject(req);
     conversations.add(req);
   }
