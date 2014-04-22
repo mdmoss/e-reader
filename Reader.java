@@ -115,16 +115,19 @@ public class Reader {
     
     currentBook = book;
     currentPage = page;
-    
+
+    Socket sock = new Socket(server, serverPort);
+    ObjectOutputStream out = new ObjectOutputStream(sock.getOutputStream());
+    out.writeObject(new Display(book, page));
+    ObjectInputStream in = new ObjectInputStream(sock.getInputStream());
+    Display res = (Display) in.readObject();
+
     if (this.mode.equals("pull")) {
       updatePosts(book, page);
     }
-    
-    String fileName = pageDir + book + "_page" + page;
-    BufferedReader file = new BufferedReader(new FileReader(fileName));
-    String text = null;
+
     int line = 1;
-    while((text = file.readLine()) != null) {
+    for (String text : res.lines) {
       String marker = " ";
       for (Post p : posts) {
         if (p.book.equals(book) && p.page == page && p.line == line) {

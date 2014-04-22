@@ -6,9 +6,11 @@
  */
 
 import java.io.*;
+import java.lang.String;
 import java.net.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Scanner;
 
 public class Server {
 
@@ -42,6 +44,8 @@ public class Server {
       addPost((Post) message); 
     } else if (message.getClass().equals(Client.class)) {
       addClient((Client) message, out);
+    } else if (message.getClass().equals(Display.class)) {
+      sendPage((Display) message, out);
     } else if (message.getClass().equals(ChatClient.class)) {
       out.close();
       addChatClient((ChatClient) message);
@@ -97,6 +101,22 @@ public class Server {
     }
     System.out.println(">");
     out.writeObject(full);
+    out.close();
+  }
+
+  public void sendPage(Display d, ObjectOutputStream out) throws IOException {
+    System.out.println("Sending page " + d);
+
+    String fileName = d.book + "_page" + d.page;
+    ArrayList<String> lines = new ArrayList<String>();
+
+    Scanner s = new Scanner(new File(fileName));
+    while (s.hasNextLine()) {
+      lines.add(s.nextLine());
+    }
+
+    d.lines = lines;
+    out.writeObject(d);
     out.close();
   }
   
